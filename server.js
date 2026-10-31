@@ -15,8 +15,23 @@ const app = express();
 app.set('trust proxy', 1);
 
 // 🚨 1. CORS MUST BE FIRST 🚨
+// NOTE: browsers always send the Origin host in LOWERCASE, and the cors
+// package matches case-sensitively — whitelist entries MUST be lowercase.
+const allowedOrigins = [
+    'https://chezaprime.com',
+    'https://www.chezaprime.com',
+    'https://chezaprimeadmin.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173'
+];
+
 app.use(cors({
-    origin: ['https://ChezaPrime.com', 'https://www.ChezaPrime.com'],
+    origin: (origin, callback) => {
+        // No Origin header = curl / server-to-server / same-origin -> allow
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin.toLowerCase())) return callback(null, true);
+        return callback(null, false); // no CORS headers -> browser blocks it
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -36,12 +51,7 @@ app.use((req, res, next) => {
 
 app.use(mongoSanitize());
 
-app.use(cors({
-    origin: ['https://ChezaPrime.com', 'http://ChezaPrime.com', 'https://www.ChezaPrime.com', 'https://ChezaPrimeadmin.vercel.app'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// (duplicate CORS middleware removed — handled by the single middleware above)
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, max: 200,
